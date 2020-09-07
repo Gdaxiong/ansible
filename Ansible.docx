@@ -1,0 +1,289 @@
+﻿Ansible自动化运维工具
+
+开三台CentOS7    
+
+第一台   管理机     192.168.100.11   Ansible
+
+第二台   被管理机  192.168.100.22   client1
+
+第三台   被管理机  192.168.100.33   client2
+
+**关闭防火墙**
+
+```
+#setenforce 0  
+#systemctl stop firewalld
+#iptable -F
+```
+
+**第一台管理主机需要联网**
+
+```
+#yum -y install epel-release   需要先安装这个 才能安装ansible
+#yum -y install ansible  安装自动化
+```
+
+如果显示没有安装包，换yum源，上网去搜阿里源导入 /etc/yum.repos.d/CentOS-Base.repo。导入之后
+
+yum clean all 清理缓存，yum makecache 生成新的缓存。
+
+**安装完之后查看ansible 版本号**
+
+```
+#ansible --version  查看版本号
+```
+
+**创建SSH免交互登录**
+
+```
+#ssh-keygen -t rsa  
+一下全是默认的  直接回车
+
+#ssh-copy-id root@192.168.100.22   把密钥对发给100.22
+#ssh-copy-id root@192.168.100.33   再发给100.33
+
+测试链接 22和33
+#ssh root@192.168.100.22
+#ssh root@192.168.100.33
+```
+
+**Ansible配置，ansible默认文件在/etc/ansible/hosts**
+
+```
+#cp /etc/ansible/hosts{,.bak}  #备份一下hosts文件
+#vim /etc/ansible/hosts   #修改一下ansible里边的hosts文件，在最后添加一下配置
+
+[linux]
+192.168.100.22
+192.168.100.33
+
+[host]         #如果这样配置 需要在编辑/etc/hosts，因为它对主机命要解析
+client1
+client2
+
+
+#vim /etc/hosts           #添加其他两台的ip和主机名字 为了解析
+192.169.100.22 client1
+192.168.100.33 client2
+
+```
+
+**配置完毕之测试**
+
+```  
+#ansible -i linux - m ping      #检查连通性  如果通信了显示 SUCCESS 
+
+#ansible -i host -m ping      #测试另外一个组  连通性
+```
+
+**执行命令**
+
+```
+#ansible 主机组 -m 模块 -a 参数
+
+#ansible linux -m ping   #ping模块不用传递参数
+
+#ansible linux -m command -a "free -m "    #command帮助咱们远程执行sehll命令   "free -m" 查看内存使用情况
+
+以下方式 都可以做限制
+#ansible linux -m command -a "cat /etc/passwd" --limit 192.168.100.22       #limit做限制
+#ansible 192.168.100.22 -m command -a "cat /etc/passwd"  也可以这样
+#ansible 192.168.100.* -m command -a "cat /etc/passwd"
+```
+
+**Ansible**是生产环境中使用非常频繁的命令之一，主要在一下场景应用
+
+```
+a.非固化需求
+b.临时一次性操作
+c.二次开发接口调用
+
+-m 指定模块名字    #非常重要#
+-M 指定模块路径
+-a 指定模块参数   #非常重要#
+
+all 所有主机  在你ansible/hosts里边指定的所有主机   
+-f 5  线程数是5个
+-m ping  模块
+#asnbile all -f 5 -m ping 
+
+----------------------------------------------------------------------------
+#ansible linux -m command -a "df -Th"    #查看磁盘使用容量
+#ansible linux -a "df -Th"   #也可以这样，因为command是默认的，所有一摸一样。
+```
+
+**介绍模块**
+
+```
+command模块
+第一台
+#ansible linux -m command -a "useradd linux"    #给两个被管理端 创建一个用户
+#ansible linux -m command -a "chdir=/home ls-l"   #查看一下
+第二台
+#cd /home
+#ls   #查看有linux
+```
+
+```
+shell模块，shell远程主机执行命令，相当于调用远程主机的shell进程，和command模块的区别就是它支持shell特性，如管道 重定向。
+第一台
+#ansible linux -m shell -a "echo 1111> 1.txt"   #创建一个文档
+第二台
+#ls   #查看有1.txt文本
+```
+
+```
+raw模块，最原始的方式运行命令（不依赖python，仅通过ssh实现）
+ansible all -m raw -a "yum clean all"   # 清理yum缓存
+```
+
+```
+copy模块，copy模块用于复制指定主机文件到远程主机的指定位置
+1.dest：指在复制文件的目标目录位置，使用绝对路径。如果源是目录，值目标也要目录，如果目标文件已经存在会覆盖原有的内容
+2.src：
+3.mode:指出复制时，目标文件的权限 可选
+4.owner:指出复制时，目标文件的属性 可选
+5.group:指出复制时，目标文件的属组 可选
+6.content:指出复制目标主机上的内容，不能与src一起使用
+
+实验案例
+将linux组中主机的 /etc/hosts 文件拷贝到/tmp下  指定权限777  属主为linux  更改成root
+#ansible linux -m copy -a "src=/etc/hosts dest=/tmp/ mode=777 owner=linux group =root"
+
+第二台第三台被管理主机
+#ls -l /tmp/hosts   #查看
+```
+
+```
+hostname 模块 用于管理远程主机上的主机名字。name：主机名
+实验案例
+#ansible 192.168.100.22 -m hostname -a "name=c1"   #更改100.22 的主机名字 改成c1
+第二台
+#bash    #刷新一下 就显示出来了
+```
+
+```
+yum模块 基于yum机制，对远程主机管理程序包，帮助所有主机安装软件包
+yum安装bind
+#ansible linux -m yum -a "name=bind state=present"
+第二台第三台
+#ps aux | grep yum  #查看进程，会显示sr/bin/yum -d 2 -y install bind
+#rpm -q bind   #显示版本号 安装成功
+```
+
+```
+service 模块 用来管理远程主机上的服务模块
+
+二，三台主机都需要有相对的服务
+开机自启动
+#ansible linux -m service -a "name=httpd state=started enabled=yes"
+```
+
+```
+User 模块 用于管理远程主机上的用户账号
+name:必选参数，账号名称
+state=present|absent:创建账号或者删除账号，present创建，absent删除
+system=yes|no：是否为系统账号
+uid：用户UID
+group：用户的基本组
+groups：用户的附加组
+shell：默认使用的shell
+home：用户的家目录
+password：用户的密码，建议使用加密后字符
+command：用户的注释信息
+remove=yes|no：当state=absent时，是否删除用户的家目录
+
+ansible 命令字 对linux组进行操作 -m模块为user -a信息 '用户为user1  是系统账户  uid502  用户基本组是root 附加组是sshd  shell是/sbin/nologin 家目录是/home/user1 注释信息是测试用户'
+
+#ansible linux -m user -a 'name=user1 system=yes uid=502 group=root groups=sshd shell=/sbin/nologin home=/home/user1 password=user1 comment="test user"'
+```
+
+```
+scipt 模块  能实现远程服务批量运行本地的shell脚本。批量分发自动nginx
+
+第一台
+#vim /opt/file20.sh
+#!/bin/bash
+
+touch /tmp/file{1..20}
+wq
+ansible linux - m script -a "/opt/file20.sh"
+
+第二第三
+ls /tmp/
+```
+
+****
+
+**playbook 配置文件**
+
+```ser
+修改配置文件  实验
+#vim /etc/ansible/hosts
+[test01]
+192.168.100.22
+
+[test02]
+192.168.100.33
+---------------------------------------------
+#vim /etc/ansible/test.yml
+---
+- hosts: test01
+   remote_user: root
+   tasks:
+     - name:adduser
+        user:name=user2 state=present
+        tags:
+       - testa
+     - name:addgroup
+        group: name=root system=yes
+        tags:
+        - testb
+        
+- hosts: test02
+   remote_user:root
+   tasks:
+     - name: cf
+        copy: src=/etc/passwd dest=/home
+        tags:
+        - testc
+...
+所有的”—“和”：“ 后边均有空格，而且注意缩进的对齐
+```
+
+********playbook命令用法****
+
+```
+1.语法检测
+#ansible-playbook --syntax-check /etc/ansible/test.yml    #检查/etc/ansible/test.yml
+#playbook: /etc/ansible/test.yml     #没有报错提示
+
+2.预执行
+#ansible-playbook --syntax-check -C /etc/ansible/test.yml    #先去执行看看行不行，行就执行。不会对目标主机任何有改变
+
+3.列出主机（列出它对那些主机有影响）（很少用）
+#ansible-playbook --list-hosts /etc/ansible/test.yml
+
+4.列出具体的任务（很少用）
+#ansible-playbook --list-tasks /etc/ansible/test.yml
+
+5.列出标签（很少用）
+#ansible-playbook --list-tags /etc/ansible/test.yml
+
+6.执行任务
+#ansible-playbook /etc/ansible/test.yml
+```
+
+**触发器**
+
+```
+触发器（需要触发才能执行任务，需要被触发才能执行，如果任务成功，可触发一个触发器）
+1.handlers 是 Ansible 提供的调节机制之一，handlers和task很类似，但是它在被task通知的时候在会触发。
+2.handlers只会在所有任务执行完成后执行，而且即使被通告多次，他也会执行一次，按照定义的顺序依次执行。
+
+#vim /etc/ansible/httpd.yml    #修改httpd配置文件 通知触发器重启服务
+---
+
+...
+```
+

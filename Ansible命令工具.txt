@@ -1,0 +1,93 @@
+
+Ansible是生产环境中使用非常频繁的命令之一，主要在以下场景应用
+a).非固化需求
+b).临时一次性操作
+c).二次开发接口调用
+
+
+
+语法：ansible 主机 选项
+可用选项如下：
+-v (--verbose)    #输出详细的执行过程信息，可以得到执行过程所有信息#
+
+-i PATH(--inventory=PATH)   #指定 inventory 信息, 默认为/etc/ansible/hosts#
+
+-f NUM(--forks=NUM)   #并发线程数，默认为5个线程#
+
+--private -key=PRIVATE_KEY_FILE   #指定秘钥文件#
+
+-m NAME,--moudle -name=NAMEL  #指定执行时使用的模块#
+
+-M DIRECTORY (--module -path=DIRECTORY)   #指定模块存放路径 ，默认为/usr/share/ansible,也可以通过ANSIBLE_LIBRARY 设定默认目录#
+
+-a ARGUMENTS ( --args=ARGUMENTS)     #指定模块参数#
+
+-u USERNAME (--user=USERNAME)   #指定远程主机 USERNAME运行命令#
+
+-I subset (-limit=SUBSET)       #限定运行主机#
+
+-list-hosts:列出符合条件的主机列表，不执行任何命令
+
+=============================================================================================
+[root@benet ~]# ansible all -f 5 -m ping     #检查所有主机是否存活#
+[root@benet ~]# ansible crushlinux --list-host    #列出 crushlinux 组中所有主机列表#
+
+1、ansible 主机组 -m 模块 -a 传递参数
+[root@benet ~]# ansible crushlinux -m command -a "free -m"     #给 crushlinux组 远程执行shell命令：查看内存使用情况#
+                                        【 command 远程执行shell命令    free -m查看内存使用情况】
+
+
+“对操作对象的限制”：
+[root@benet ~]# ansible crushlinux -m command -a "cat /etc/passwd" --limit 192.168.100.200
+                                                                   #只在crushlinux组的192.168.100.200主机上执行#
+
+[root@benet ~]# ansible 192.168.100.200 -m command -a "cat /etc/passwd" 
+                                         #仅在192.168.100.200主机上执行#
+
+[root@benet ~]# ansible 192.168.100.* -m command -a "cat /etc/passwd" 
+                                #在192.168.100.0网段主机上执行#
+
+
+
+
+
+
+
+2、Ansible-doce
+ansible -doc用来查询ansible模块文档的说明，类似于man命令，针对每个模块都有详细的用法说明及应用案列介绍。
+
+[root@ansible ~]# ansible-doc-l       #查看总帮助#
+[root@ansible ~]# ansible-doc -s shell   #查看 shell 模块的帮助#
+[root@ansible ~]# ansible-doc -s raw    #查看 raw 命令的帮助#
+[root@benet ~]# ansible-doc ping    等同于ansible-doc -s raw  #查看ping 模块的帮助#
+
+
+3、ansible playbook
+Ansible-playbook是日常应用中使用频率最高的命令，类似于Linux系统中的sh或source命令，用来执行系列任务，
+其工作机制是，通过读取编写好的playbook 文件实现集中处理任务，
+ansible- playbook命令后跟yml或者yaml格式的playbook文件，playbook 文件存放了要执行的任务代码
+命令使用方式如下：
+
+语法: ansible-playbook playbook.yml
+playbook.yml需要之前编译好建 议写playbook.yml文件的绝对路径
+
+
+
+
+
+
+4. ansible-console
+ansible- console 是 ansible 为用户提供的一款交互式工具，
+类似于windows 中的cmd 以及 Linux 中是 shell ，用户可以在ansible-console 虚拟出来的终端上做像shell 一样使用 ansible内置的各种命令，
+这为习惯于使用shell 交互方式的用户提供了良好的体验，在终端输入ansible-console 命令即可使用虚拟终端
+[root@ansible ~]# ansible-console
+
+所有操作与shell 类似，而且支持Tab键补全，按快捷键Ctrl+D或CtrI+C即可退出当前虚拟终端
+
+
+
+
+
+
+
+

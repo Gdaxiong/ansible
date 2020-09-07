@@ -1,0 +1,68 @@
+     Ansible工具集合
+Ansible工具集合了Inventory, Moudles, Plugins 和API。其中，Inventory 用来管理设备列表，可以通过分组(不同的业务)实现，对组的调用直接影响组内所有主机; 
+Moudles 是各种执行模块，几乎所有的管理任务都是通过模块来执行的;Plugins提供了各种附加功能;API为编程人员提供-个调用接口，可以做Ansible的二次开发具体表现如下
+1) Ansible Playbook:任务脚本，编排定义Ansible任务集的配置文件，由Ansible按序依次执行，通常是JSON格式的YML/YAML文件;
+2)Inventory: Ansible 管理主机清单;
+3) Moudle: Ansible 执行命令工能模块，多数为内置的核心模块也可以用户自定义;
+4)Plugins:模块功能的补充，如连接类型插件，循环插件，变量插件，过滤插件等，该功能不常用; 
+5) API: 提供第三方程序调用的应用程序编程接口;
+
+
+实验环境：
+192.168.100.100     ansible
+192.168.100.200     被管理主机
+192.168.100.201     被管理主机
+
+ansible主机安装ansible软件需要联网和更换阿里yum源
+   请看    【虚拟机联网和更换阿里yum源.txt】
+
+三台都敲：
+[root@benet ~]# systemctl stop firewalld.service 
+[root@benet ~]# iptables -F
+[root@benet ~]# setenforce 0
+
+ansible：
+[root@benet ~]# yum -y install ansible
+[root@benet ~]# ansible --version   #查看版本#
+
+[root@benet ~]# ssh-keygen -t rsa    #创建密钥对（一路回车）#
+[root@benet ~]# ssh-copy-id root@192.168.100.200    #发送给192.168.100.200主机#
+[root@benet ~]# ssh-copy-id root@192.168.100.201    #发送给192.168.100.201主机#
+测试看看密钥对是否能够连接上
+[root@benet ~]# ssh root@192.168.100.200    #连接到192.168.100.201主机#
+[root@localhost ~]# exit
+[root@benet ~]# ssh root@192.168.100.201    #连接到192.168.100.201主机#
+[root@localhost ~]# exit
+
+
+修改ansible配置文件：
+[root@benet ~]# cp /etc/ansible/hosts /etc/ansible/hosts.bak
+[root@benet ~]# vim /etc/ansible/hosts
+  在最后一行输入：
+[crushlinux]
+192.168.100.200
+192.168.100.201
+===================================================================
+也可以输入
+[host]
+client1    #被管理的主机名#
+client2    #被管理的主机名#
+或者
+[host]
+client[1:2]
+
+[root@benet ~]# vim /etc/hosts
+  在最后一行输入：
+192.168.100.200 client1     #被管理的主机名#
+192.168.100.201 client2     #被管理的主机名#
+
+[root@benet ~]# scp /etc/hosts 192.168.100.200:/etc/   #发送给192.168.100.200主机下的/etc#
+[root@benet ~]# scp /etc/hosts 192.168.100.201:/etc/   #发送给192.168.100.201主机下的/etc#
+=================================================================
+
+[root@benet ~]# ansible -i /etc/ansible/hosts crushlinux -m ping   #检查节点的连通性#
+最后一行显示为   "ping": "pong"    表示能连通
+
+
+
+
